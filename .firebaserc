@@ -1,1 +1,5 @@
-{}
+{
+  "projects": {
+    "default": "slackbot-6314b"
+  }
+}
