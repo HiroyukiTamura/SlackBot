@@ -1,0 +1,15 @@
+{
+  "name": "slackbot2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "node/index.js",
+  "scripts": {
+    "start": "node node/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "kotlin": "^1.3.31"
+  }
+}
