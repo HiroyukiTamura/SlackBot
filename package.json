@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "kotlin": "^1.3.31"
+    "kotlin": "^1.3.31",
+    "firebase-functions": "^2.2.0"
   }
 }
