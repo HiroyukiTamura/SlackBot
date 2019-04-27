@@ -1,0 +1,21 @@
+{
+  "token": "{TOKEN}",
+  "team_id": "{TEAM_ID}",
+  "api_app_id": "{API_APP_ID}",
+  "event": {
+    "client_msg_id": "{CLIENT_MSG_ID}",
+    "type": "message",
+    "text": "test msg",
+    "user": "{USER}",
+    "ts": "1556318000.010600",
+    "channel": "{CHANNEL}",
+    "event_ts": "1556318000.010600",
+    "channel_type": "channel"
+  },
+  "type": "event_callback",
+  "event_id": "EvJ7H0B0DS",
+  "event_time": 1556318000,
+  "authed_users": [
+    "{AUTHED_USER}"
+  ]
+}

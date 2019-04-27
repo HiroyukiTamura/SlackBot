@@ -1,0 +1,20 @@
+{
+  "token": "{TOKEN}",
+  "team_id": "{TEAM_ID}",
+  "api_app_id": "{API_APP_ID}",
+  "event": {
+    "client_msg_id": "{CLIENT_MSG_ID}",
+    "type": "app_mention",
+    "text": "<@UJ7GN8SJ0> 私がソクラテスだ",
+    "user": "{USER}",
+    "ts": "1556320197.011300",
+    "channel": "{CHANNEL}",
+    "event_ts": "1556320197.011300"
+  },
+  "type": "event_callback",
+  "event_id": "EvJ1Q6FD41",
+  "event_time": 1556320197,
+  "authed_users": [
+    "{AUTHED_USER}"
+  ]
+}
