@@ -25,10 +25,14 @@ exports.eventTriggered = functions.https.onRequest((request, response) => {
 
         switch (request.body.event.type) {
             case 'message':
-
-                break;
+                return onMessaged(request.body.token, request.body.event.channel, request.body.event.user, request.body.event.text).then(result => {
+                    console.log(result);
+                    return response.send(request.body.challenge);
+                }).catch(e => {
+                    console.log(e);
+                });
             case 'app_mention': {
-                const promiseList = onMentioned(request.body.token, request.body.channel, request.body.user, request.body.event.text);
+                const promiseList = onMentioned(request.body.token, request.body.event.channel, request.body.event.user, request.body.event.text);
                 return Promise.all(promiseList).then(data => {
                     console.log('app_mention', data);
                     return response.send(request.body.challenge);
@@ -37,11 +41,6 @@ exports.eventTriggered = functions.https.onRequest((request, response) => {
                 });
             }
         }
-
-        // if (request.body.type === 'event_callback'
-        //     && request.body.event.type === 'message') {
-        //     console.log(request.body.event.text);
-        // }
     }
 
     return response.send(request.body.challenge);
@@ -55,8 +54,13 @@ exports.eventTriggered = functions.https.onRequest((request, response) => {
  * @param text {string}
  * @return {Array<Promise<T>>}
  */
-function onMentioned(token, channel, user, text){
-    const t = text.replace('/ |　|!|！|<@UJ7GN8SJ0>/g', '');
+function onMentioned(token, channel, user, text) {
+    const t = text.replace(' ', '')
+        .replace('　', '')
+        .replace('!', '')
+        .replace('！', '')
+        .replace('<@UJ7GN8SJ0>', '');
+
     switch (t) {
         case '私がソクラテスだ': {
             console.log('yeah!');
@@ -69,7 +73,7 @@ function onMentioned(token, channel, user, text){
         default:
             console.log(`text: ${t}`);
             //todo 説明整備すること
-            return [createSendMsgPrm(token, channel, '「私がソクラテスだ！」で相づちを開始、「うるさい！」で相づちを止めます')];
+            return [createSendMsgPrm(token, channel, '「私がソクラテスだ！」で相づちを開始、「うるさい！」で相づちを止めます。文章が読点で終わるとき相づちを打ちます。')];
     }
 }
 
@@ -79,17 +83,33 @@ function onMentioned(token, channel, user, text){
  * @param enable {boolean}
  * @return {Promise<undefined>}
  */
-function createFbTransaction(channel, user, enable){
+function createFbTransaction(channel, user, enable) {
+    console.log(channel, user, enable);
     const ref = admin.firestore().collection('registered');
-    const queryRef = ref.where('user', '==', user)
-        .where('channel', '==', channel);
-
-    return admin.firestore().runTransaction(transaction => {
-        return transaction.get(queryRef)
-            .then(doc => {
-                return transaction.update(queryRef, {enabled: enable});
+    return admin.firestore()
+        .collection('registered')
+        .where('user', '==', user)
+        .where('channel', '==', channel)
+        .get()
+        .then(snapshot => {
+            let doc;
+            let updated = false;
+            snapshot.forEach(d => {
+                if (d.exists && !updated) {
+                    updated = true;
+                    doc = d;
+                }
             });
-    });
+
+            if (doc)
+                return ref.doc(doc.id).update({enabled: enable});
+            else
+                return ref.add({
+                    channel: channel,
+                    user: user,
+                    enabled: enable
+                });
+        });
 }
 
 
@@ -99,7 +119,7 @@ function createFbTransaction(channel, user, enable){
  * @param msg {string}
  * @return {Promise<T>}
  */
-function createSendMsgPrm(token, channel, msg){
+function createSendMsgPrm(token, channel, msg) {
     const option = {
         method: 'POST',
         url: 'https://slack.com/api/chat.postMessage',
@@ -109,9 +129,73 @@ function createSendMsgPrm(token, channel, msg){
         },
         json: true,
         body: {
-            channel: 'CBD96M0AF',//todo これマジで謎
+            channel: channel,//todo これマジで謎 'CBD96M0AF'
             text: msg
         },
     };
     return rp(option)
+}
+
+/**
+ * @param token {string}
+ * @param channel {string}
+ * @param user {string}
+ * @param text {string}
+ * @return {Promise<T>}
+ */
+function onMessaged(token, channel, user, text) {
+    if (text.charAt(text.length - 1) !== '。')
+        return Promise.resolve();
+
+    console.log(token, channel, user, text);
+    return admin.firestore().collection('registered')
+        .where('user', '==', user)
+        .where('channel', '==', channel)
+        .get()
+        .then(snapshot => {
+            let isExists = false;
+            let isSet = false;
+            snapshot.forEach(doc => {
+                if (!isSet) {
+                    isSet = true;
+                    isExists = doc.exists && doc.data()['enabled'];
+                }
+            });
+            return isExists;
+        }).then(enabled => {
+            if (!enabled)
+                return;
+            return admin.firestore().collection('phrase').get();
+
+        }).then(snapshot => {
+            if (!snapshot)
+                return;
+            const position = getRandomInt(snapshot.size-1);
+            let count = 0;
+            let phrase = '';
+            snapshot.forEach(item => {
+                if (position === count) {
+                    phrase = item.data()['phrase'];
+                }
+                count++;
+            });
+
+            console.log(phrase);
+
+            return createSendMsgPrm(token, channel, phrase);
+        }).then(result => {
+            if (result)
+                console.log(JSON.stringify(result));
+            return;
+        }).catch(e => {
+            console.error(e);
+        });
+}
+
+/**
+ * @param max {number}
+ * @return {number}
+ */
+function getRandomInt(max) {
+    return Math.floor(Math.random() * Math.floor(max));
 }
