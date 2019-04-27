@@ -259,3 +259,4 @@ fabric.properties
 .idea/httpRequests
 
 /test.http
+/functions/env.js

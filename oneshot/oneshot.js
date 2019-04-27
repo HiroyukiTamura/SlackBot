@@ -1,5 +1,6 @@
 const fs = require('fs-extra');
 const {BigEmoji} = require('../functions/bigemoji');
+const { TOKEN_EMOJI } = require('../functions/env');
 
 const admin = require("firebase-admin");
 const serviceAccount = require("../functions/resources/slackbot-6314b-firebase-adminsdk-tapy4-9aaa95851d.json");
@@ -26,7 +27,7 @@ async function kickEmojiList() {
     const bigEmoji = new BigEmoji();
     const result = await bigEmoji.getEmoji('black_square')
         .then(imgUrl => {
-            return bigEmoji.createSendMsgPrm('xoxp-386714292048-387550193301-620391537008-b6c5fed4825278868ad80ee5caf2a0f5', 'CBD96M0AF', imgUrl)
+            return bigEmoji.createSendMsgPrm(TOKEN_EMOJI, 'CBD96M0AF', imgUrl)
         }).then(data => {
             console.log(data);
         }).catch(e => {
