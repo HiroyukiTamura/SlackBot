@@ -2,6 +2,7 @@ const functions = require('firebase-functions');
 
 const admin = require('firebase-admin');
 const rp = require('request-promise');
+const {BigEmoji} = require('./bigemoji');
 const serviceAccount = require("./resources/slackbot-6314b-firebase-adminsdk-tapy4-9aaa95851d.json");
 
 admin.initializeApp({
@@ -27,7 +28,7 @@ exports.eventTriggered = functions.https.onRequest((request, response) => {
             case 'message':
                 return onMessaged(request.body.token, request.body.event.channel, request.body.event.user, request.body.event.text).then(result => {
                     console.log(result);
-                    return response.send(request.body.challenge);
+                    return response.status(200).send();
                 }).catch(e => {
                     console.log(e);
                 });
@@ -35,7 +36,7 @@ exports.eventTriggered = functions.https.onRequest((request, response) => {
                 const promiseList = onMentioned(request.body.token, request.body.event.channel, request.body.event.user, request.body.event.text);
                 return Promise.all(promiseList).then(data => {
                     console.log('app_mention', data);
-                    return response.send(request.body.challenge);
+                    return response.status(200).send();
                 }).catch(e => {
                     console.error(e);
                 });
@@ -43,7 +44,16 @@ exports.eventTriggered = functions.https.onRequest((request, response) => {
         }
     }
 
-    return response.send(request.body.challenge);
+    return response.status(200).send(request.body.challenge);
+});
+
+
+exports.bigEmoji = functions.https.onRequest((request, response) => {
+    return new BigEmoji().onRequest(request).then(data => {
+        return response.status(200).send(request.body.challenge);
+    }).catch(e => {
+        console.error(e);
+    });
 });
 
 
