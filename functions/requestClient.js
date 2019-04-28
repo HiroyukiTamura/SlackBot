@@ -1,26 +1,27 @@
-class BigEmoji {
+'use strict';
 
-    constructor() {
-        this.TOKEN_EMOJI = require('./env').TOKEN_EMOJI;
-        this.rp = require('request-promise');
+class RequestClient {
+
+    constructor(){
         this.request = require('request');
+        this.rp = require('request-promise');
+        this.env = require('./env');
     }
 
     /**
-     * @param request
-     * @return {Promise<string | never>}
+     * @param code {string}
+     * @return {Promise<T>}
      */
-    onStampCommand(request){
-        const text = request.body.text.replace(/:([^:]+):/, '$1');
-
-        return this.getEmoji(text).then(imgUrl => {
-            console.log(request.body.channel_id);
-            return this.createSendMsgPrm(this.TOKEN_EMOJI, request.body.channel_id, imgUrl);
-        }).then(data => {
-            return data;
-        }).catch(e => {
-            console.error(e);
-        })
+    requestUserAuthCode(code){
+        const option = {
+            uri: `https://slack.com/api/oauth.access?code=${code}`+
+                `&client_id=${this.env.EMOJI_CLIENT_ID}`+
+                `&client_secret=${this.env.EMOJI_SECRET}`+
+                `&redirect_uri=${this.env.AUTH_REDIRECT_URL}`,
+            method: 'GET',
+            json: true
+        };
+        return this.rp(option);
     }
 
 
@@ -33,7 +34,7 @@ class BigEmoji {
             const option = {
                 url: 'https://slack.com/api/emoji.list',
                 headers: {
-                    'Authorization': `Bearer ${this.TOKEN_EMOJI}`
+                    'Authorization': `Bearer ${this.env.TOKEN_EMOJI}`
                 },
                 json: true
             };
@@ -53,7 +54,7 @@ class BigEmoji {
                     if (!imgUrl) {
                         //標準の絵文字
                         resolve(`https://www.webfx.com/tools/emoji-cheat-sheet/graphics/emojis/${text}.png`)
-                    } else if (BigEmoji.isAlias(imgUrl)) {
+                    } else if (RequestClient.isAlias(imgUrl)) {
                         //alias:black_large_square等の場合に対応
                         const alias = imgUrl.substring('alias:'.length);
                         const imgUrlNew = body.emoji[alias];
@@ -73,37 +74,8 @@ class BigEmoji {
     static isAlias(url){
         return url.startsWith('alias:');
     }
-
-
-    /**
-     * @param userToken {string}
-     * @param channel {string}
-     * @param imgUrl {string}
-     */
-    createSendMsgPrm(userToken, channel, imgUrl) {
-        const option = {
-            method: 'POST',
-            url: 'https://slack.com/api/chat.postMessage',
-            headers: {
-                'Content-type': 'application/json; charset=UTF-8',
-                'Authorization': `Bearer ${userToken}`
-            },
-            json: true,
-            body: {
-                channel: channel,
-                as_user: true,
-                text: '',
-                attachments: [{
-                    color: '#fff',
-                    text: '',
-                    image_url: imgUrl,
-                }],
-            },
-        };
-        return this.rp(option)
-    }
 }
 
 module.exports = {
-    BigEmoji: BigEmoji
+    RequestClient: RequestClient
 };

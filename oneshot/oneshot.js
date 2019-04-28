@@ -1,6 +1,9 @@
 const fs = require('fs-extra');
-const {BigEmoji} = require('../functions/bigemoji');
+const {RequestClient} = require('../functions/requestClient');
 const { TOKEN_EMOJI } = require('../functions/env');
+const rc = new RequestClient();
+const {Messenger} = require('../functions/messenger');
+const messenger = new Messenger();
 
 const admin = require("firebase-admin");
 const serviceAccount = require("../functions/resources/slackbot-6314b-firebase-adminsdk-tapy4-9aaa95851d.json");
@@ -24,10 +27,9 @@ async function uploadInitialPhrases() {
 }
 
 async function kickEmojiList() {
-    const bigEmoji = new BigEmoji();
-    const result = await bigEmoji.getEmoji('black_square')
+    const result = await rc.getEmoji('black_square')
         .then(imgUrl => {
-            return bigEmoji.createSendMsgPrm(TOKEN_EMOJI, 'CBD96M0AF', imgUrl)
+            return messenger.postBigEmoji(TOKEN_EMOJI, 'CBD96M0AF', imgUrl)
         }).then(data => {
             console.log(data);
         }).catch(e => {

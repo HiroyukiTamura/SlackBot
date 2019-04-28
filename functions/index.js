@@ -1,11 +1,10 @@
 const functions = require('firebase-functions');
 
 const admin = require('firebase-admin');
-const rp = require('request-promise');
-const {BigEmoji} = require('./bigemoji');
-const {EmojiToken} = require('./emojiToken');
 const {Messenger} = require('./messenger');
-const { SLACK_TOKEN, TOKEN_EMOJI_BOT, EMOJI_USER_ID } = require('./env');
+const {Firestore} = require('./firestore');
+const {RequestClient} = require('./requestClient');
+const { SLACK_TOKEN, TOKEN_EMOJI_BOT, EMOJI_USER_ID, TOKEN_EMOJI } = require('./env');
 const serviceAccount = require("./resources/slackbot-6314b-firebase-adminsdk-tapy4-9aaa95851d.json");
 const express = require('express');
 const cors = require('cors');
@@ -16,6 +15,10 @@ admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://slackbot-6314b.firebaseio.com"
 });
+
+const firestore = new Firestore();
+const messenger = new Messenger();
+const rc = new RequestClient();
 
 /**
  * "type": "url_verification",
@@ -58,13 +61,20 @@ app.post('/eventTriggered', (request, response) => {
 
 app.get('/bigEmoji', (request, response) => {
     console.log('bigEmoji fired');
-    if (request.body.command === '/stamp')
-        return new BigEmoji().onStampCommand(request).then(data => {
-            console.log(data);
+
+    if (request.body.command === '/stamp') {
+        const text = request.body.text.replace(/:([^:]+):/, '$1');
+
+        return rc.getEmoji(text).then(imgUrl => {
+            console.log(request.body.channel_id);
+            return messenger.postBigEmoji(TOKEN_EMOJI, request.body.channel_id, imgUrl);
+        }).then(data => {
             return response.sendStatus(200);
         }).catch(e => {
             console.error(e);
         });
+    }
+
     return response.sendStatus(200);
 });
 
@@ -81,9 +91,7 @@ app.post('/bigEmojiEvent', (request, response) => {
             case 'message':
             case 'app_mention': {
                 console.log(request.body.event.channel, request.body.event.user);
-                const emojiToken = new EmojiToken();
-                const messenger = new Messenger();
-                return new emojiToken.checkUserTokenExists(request.body.event.channel, request.body.event.user).then(doc => {
+                return new firestore.checkUserTokenExists(request.body.event.channel, request.body.event.user).then(doc => {
                     let msgObj = messenger.createInteractiveMsg(request.body.event.channel, doc.exists);
                     return messenger.createSendMsgPrmWithBody(TOKEN_EMOJI_BOT, msgObj);
                 }).then(data => {
@@ -106,11 +114,10 @@ app.get('/bigEmojiAuthRedirected', (request, response) => {
     console.log('bigEmojiAuthRedirected');
     console.log(JSON.stringify(request.query));
 
-    const emojiToken = new EmojiToken();
-    return emojiToken.requestUserAuthCode(request.query.code).then(data => {
+    return rc.requestUserAuthCode(request.query.code).then(data => {
         console.log(JSON.stringify(data));
         if (data.ok)
-            return emojiToken.writeUserToken2Fb(data.access_token, data.user_id);
+            return firestore.writeUserToken2Fb(data.access_token, data.user_id);
 
         const err = new Error('!data.ok');
         console.error(err);
@@ -145,56 +152,19 @@ function onMentioned(channel, user, text) {
         .replace('！', '')
         .replace('<@UJ7GN8SJ0>', '');
 
-    const messenger = new Messenger();
-
     switch (t) {
         case '私がソクラテスだ': {
             console.log('yeah!');
-            return [createFbTransaction(channel, user, true), messenger.sendMsgForPhrase(SLACK_TOKEN, channel, 'アガトン「違いない」（『饗宴』）')];
+            return [firestore.subscribeNodding(channel, user, true), messenger.sendMsgForPhrase(SLACK_TOKEN, channel, 'アガトン「違いない」（『饗宴』）')];
         }
         case 'うるさい': {
             console.log('うるさい!');
-            return [createFbTransaction(channel, user, false), messenger.sendMsgForPhrase(SLACK_TOKEN, channel, 'カリクレス「仰せのとおりに。」（『饗宴』）')];
+            return [firestore.subscribeNodding(channel, user, false), messenger.sendMsgForPhrase(SLACK_TOKEN, channel, 'カリクレス「仰せのとおりに。」（『饗宴』）')];
         }
         default:
             console.log(`text: ${t}`);
-            return [messenger.sendMsgForPhrase(token, channel, '「私がソクラテスだ！」で相づちを開始、「うるさい！」で相づちを止めます。文章が読点で終わるとき相づちを打ちます。')];
+            return [messenger.sendMsgForPhrase(SLACK_TOKEN, channel, '「私がソクラテスだ！」で相づちを開始、「うるさい！」で相づちを止めます。文章が読点で終わるとき相づちを打ちます。')];
     }
-}
-
-/**
- * @param channel {string}
- * @param user {string}
- * @param enable {boolean}
- * @return {Promise<undefined>}
- */
-function createFbTransaction(channel, user, enable) {
-    console.log(channel, user, enable);
-    const ref = admin.firestore().collection('registered');
-    return admin.firestore()
-        .collection('registered')
-        .where('user', '==', user)
-        .where('channel', '==', channel)
-        .get()
-        .then(snapshot => {
-            let doc;
-            let updated = false;
-            snapshot.forEach(d => {
-                if (d.exists && !updated) {
-                    updated = true;
-                    doc = d;
-                }
-            });
-
-            if (doc)
-                return ref.doc(doc.id).update({enabled: enable});
-            else
-                return ref.add({
-                    channel: channel,
-                    user: user,
-                    enabled: enable
-                });
-        });
 }
 
 
@@ -203,61 +173,30 @@ function createFbTransaction(channel, user, enable) {
  * @param channel {string}
  * @param user {string}
  * @param text {string}
- * @return {Promise<T>}
+ * @return {Promise<null>}
  */
 function onMessaged(token, channel, user, text) {
-    if (text.charAt(text.length - 1) !== '。')
+    if (!text.endsWith('。'))
         return Promise.resolve();
 
     console.log(token, channel, user, text);
-    return admin.firestore().collection('registered')
-        .where('user', '==', user)
-        .where('channel', '==', channel)
-        .get()
-        .then(snapshot => {
-            let isExists = false;
-            let isSet = false;
-            snapshot.forEach(doc => {
-                if (!isSet) {
-                    isSet = true;
-                    isExists = doc.exists && doc.data()['enabled'];
-                }
-            });
-            return isExists;
-        }).then(enabled => {
+    return firestore.isNodding(channel, user)
+        .then(enabled => {
             if (!enabled)
-                return;
+                return null;
             return admin.firestore().collection('phrase').get();
 
         }).then(snapshot => {
-            if (!snapshot)
-                return;
-            const position = getRandomInt(snapshot.size - 1);
-            let count = 0;
-            let phrase = '';
-            snapshot.forEach(item => {
-                if (position === count) {
-                    phrase = item.data()['phrase'];
-                }
-                count++;
-            });
-
+            const phrase = firestore.getRandomPhrase(snapshot);
+            if (!phrase)
+                return null;
             console.log(phrase);
-
             return new Messenger().sendMsgForPhrase(token, channel, phrase);
         }).then(result => {
             if (result)
                 console.log(JSON.stringify(result));
-            return;
+            return null;
         }).catch(e => {
             console.error(e);
         });
-}
-
-/**
- * @param max {number}
- * @return {number}
- */
-function getRandomInt(max) {
-    return Math.floor(Math.random() * Math.floor(max));
 }

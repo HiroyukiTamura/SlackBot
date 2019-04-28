@@ -72,6 +72,35 @@ class Messenger {
         };
         return this.rp(option)
     }
+
+
+    /**
+     * @param userToken {string}
+     * @param channel {string}
+     * @param imgUrl {string}
+     */
+    postBigEmoji(userToken, channel, imgUrl) {
+        const option = {
+            method: 'POST',
+            url: 'https://slack.com/api/chat.postMessage',
+            headers: {
+                'Content-type': 'application/json; charset=UTF-8',
+                'Authorization': `Bearer ${userToken}`
+            },
+            json: true,
+            body: {
+                channel: channel,
+                as_user: true,
+                text: '',
+                attachments: [{
+                    color: '#fff',
+                    text: '',
+                    image_url: imgUrl,
+                }],
+            },
+        };
+        return this.rp(option)
+    }
 }
 
 module.exports = {
