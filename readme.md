@@ -5,6 +5,7 @@ Chat with big :emoji: includes custom and default one in slack.
 ![emoji](https://www.webfx.com/tools/emoji-cheat-sheet/graphics/emojis/laughing.png)
 
 this bot manages user token itself and any user can register/unregister for the bot with its interactive messaging on slack.
+![gif](https://github.com/HiroyukTamura/SlackBot/blob/master/docs/sample.gif)
 
 type pattern; `/stamp :emoji:`
 
