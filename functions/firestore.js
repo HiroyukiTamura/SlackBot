@@ -114,6 +114,17 @@ class Firestore {
 
 
     /**
+     * @param userId {string}
+     * @return {Promise<T>}
+     */
+    deleteUrserTokenOnFb(userId) {
+        return this.firestore.collection('emoji_user_token')
+            .doc(userId)
+            .delete();
+    }
+
+
+    /**
      * @param max {number}
      * @return {number}
      */

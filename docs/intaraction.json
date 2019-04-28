@@ -1,0 +1,70 @@
+{
+  "type": "block_actions",
+  "team": {
+    "id": "*********",
+    "domain": "***********"
+  },
+  "user": {
+    "id": "**********",
+    "username": "*******",
+    "name": "*******",
+    "team_id": "*******"
+  },
+  "api_app_id": "*******",
+  "token": "*****************",
+  "container": {
+    "type": "message",
+    "message_ts": "1556426393.028000",
+    "channel_id": "*********",
+    "is_ephemeral": false
+  },
+  "trigger_id": "*************************************",
+  "channel": {
+    "id": "***********",
+    "name": "directmessage"
+  },
+  "message": {
+    "type": "message",
+    "subtype": "bot_message",
+    "text": "***********************",
+    "ts": "1556426393.028000",
+    "username": "BigEmoji",
+    "bot_id": "********",
+    "blocks": [
+      {
+        "type": "section",
+        "block_id": "HbPK",
+        "text": {
+          "type": "mrkdwn",
+          "text": "*************",
+          "verbatim": false
+        },
+        "accessory": {
+          "type": "button",
+          "action_id": "revoke",
+          "text": {
+            "type": "plain_text",
+            "text": "************",
+            "emoji": true
+          },
+          "value": "revoke"
+        }
+      }
+    ]
+  },
+  "response_url": "https:\/\/hooks.slack.com\/actions\/TBCM08L1E\/622398062599\/DfbnQd1hqd1NVVrAn2sM4ADk",
+  "actions": [
+    {
+      "action_id": "revoke",
+      "block_id": "HbPK",
+      "text": {
+        "type": "plain_text",
+        "text": "*************",
+        "emoji": true
+      },
+      "value": "revoke",
+      "type": "button",
+      "action_ts": "1556426413.827468"
+    }
+  ]
+}

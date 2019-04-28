@@ -12,20 +12,37 @@ class Messenger {
      * @return {{blocks: {text: {text: string, type: string}, type: string}[], channel: string}}
      */
     createInteractiveMsg(channel, registered){
-        const text = registered
-            ? `BigEmojiの承認を取り消すには、<${this.env.AUTH_URL}|ここ>をクリックしてください。`
-            : `BigEmojiを使用するには、<${this.env.AUTH_URL}|ここ>をクリックしてbotを承認します。承認はいつでも取り消すことができます。`;
-        return {
-            channel: channel,
-            blocks: [
+        const blocks = registered
+            ? [
                 {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": text
+                    type: "section",
+                    text: {
+                        type: "mrkdwn",
+                        text: 'BigEmojiの承認を取り消しますか？'
+                    },
+                    accessory: {
+                        type: "button",
+                        text: {
+                            type: "plain_text",
+                            text: '取り消す'
+                        },
+                        value: "revoke",
+                        action_id: this.env.ACTION_ID_REVOKE
                     }
                 }
             ]
+            : [
+                {
+                    type: "section",
+                    text: {
+                        type: "mrkdwn",
+                        text: `BigEmojiを使用するには、<${this.env.AUTH_URL}|ここ>をクリックしてbotを承認します。承認はいつでも取り消すことができます。`
+                    }
+                }
+            ];
+        return {
+            channel: channel,
+            blocks: blocks
         };
     }
 
@@ -67,6 +84,24 @@ class Messenger {
             json: true,
             body: {
                 channel: channel,
+                text: msg
+            },
+        };
+        return this.rp(option)
+    }
+
+
+    /**
+     * @param url {string}
+     * @param msg {string}
+     * @return Promise<T>
+     */
+    reply2IntaractiveAction(url, msg){
+        const option = {
+            method: 'POST',
+            url: url,
+            json: true,
+            body: {
                 text: msg
             },
         };

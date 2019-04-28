@@ -4,7 +4,7 @@ const admin = require('firebase-admin');
 const {Messenger} = require('./messenger');
 const {Firestore} = require('./firestore');
 const {RequestClient} = require('./requestClient');
-const { SLACK_TOKEN, TOKEN_EMOJI_BOT, EMOJI_USER_ID, TOKEN_EMOJI } = require('./env');
+const { SLACK_TOKEN, TOKEN_EMOJI_BOT, EMOJI_USER_ID, TOKEN_EMOJI, ACTION_ID_REVOKE } = require('./env');
 const serviceAccount = require("./resources/slackbot-6314b-firebase-adminsdk-tapy4-9aaa95851d.json");
 const express = require('express');
 const cors = require('cors');
@@ -91,7 +91,7 @@ app.post('/bigEmojiEvent', (request, response) => {
             case 'message':
             case 'app_mention': {
                 console.log(request.body.event.channel, request.body.event.user);
-                return new firestore.checkUserTokenExists(request.body.event.channel, request.body.event.user).then(doc => {
+                return firestore.checkUserTokenExists(request.body.event.channel, request.body.event.user).then(doc => {
                     let msgObj = messenger.createInteractiveMsg(request.body.event.channel, doc.exists);
                     return messenger.createSendMsgPrmWithBody(TOKEN_EMOJI_BOT, msgObj);
                 }).then(data => {
@@ -135,6 +135,38 @@ app.get('/bigEmojiAuthRedirected', (request, response) => {
     });
 });
 
+
+app.post('/unregisterEmoji', (request, response) => {
+    console.log('unregisterEmoji fired');
+    const payload = JSON.parse(request.body.payload);
+    const userId = payload.user.id;
+    const responseUrl = payload.response_url;
+    console.log(userId);
+
+    if (payload.api_app_id !== EMOJI_USER_ID) {
+        console.log('payload.message.bot_id !== EMOJI_USER_ID');
+        return response.sendStatus(200);
+    }
+
+    if (payload.actions[0].action_id !== ACTION_ID_REVOKE) {
+        console.log(payload.actions[0].action_id, ACTION_ID_REVOKE);
+        console.log('payload.actions.action_id !== ACTION_ID_REVOKE');
+        return response.sendStatus(200);
+    }
+
+    response.sendStatus(200);
+
+    return firestore.deleteUrserTokenOnFb(userId).then(data => {
+        return data;
+    }).then(data => {
+        return messenger.reply2IntaractiveAction(responseUrl, 'botを削除しました');
+    }).then(data => {
+        console.log(data);
+        return response.sendStatus(200);
+    }).catch(e => {
+        console.error(e);
+    });
+});
 
 exports.widgets = functions.https.onRequest(app);
 
