@@ -4,17 +4,16 @@ Chat with big :emoji: includes custom and default one in slack.
 
 ![emoji](https://www.webfx.com/tools/emoji-cheat-sheet/graphics/emojis/laughing.png)
 
-this bot manages user token itself and any user can register/unregister bot within bot's framework.
-
+this bot manages user token itself and any user can register/unregister for the bot with its interactive messaging on slack.
 
 type pattern; `/stamp :emoji:`
 
 
 # Framework
-nodejs, firebase(Cloud Functions, Firestore)
+nodejs, [firebase](https://firebase.google.com/?hl=ja)(Cloud Functions, Firestore)
 
 # Firestore node tree
-firestore is used to save user token for manage permission and switch on-off of the bot.
+firestore is used to save user token for managing permission and switching on-off of the bot.
 ```
 - emoji_user_token
      |- {userId}
@@ -27,16 +26,17 @@ firestore is used to save user token for manage permission and switch on-off of 
 ```
 
 # Slack Config
-###### Interactive Components
-- enable Interactive Components, set Request URL; `{FUNCTION_URL}/widgets/unregisterEmoji`
+##### Interactive Components
+- Request URL: `{FUNCTION_URL}/widgets/unregisterEmoji`
 
-###### Slash Commands
+##### Slash Commands
 - Command: `/stamp`
 - URL: `{FUNCTION_URL}/widgets/bigEmoji`
 
-###### OAuth & Permissions
+##### OAuth & Permissions
 - Redirect URLs: `{FUNCTION_URL}/widgets/bigEmojiAuthRedirected`
 - Scopes: chat:write:user, im:history, im:read, im:write, emoji:read, bot, commands
-###### Event Subscriptions
+
+##### Event Subscriptions
 - Request URL: `{FUNCTION_URL}/widgets/bigEmojiEvent`
 - Subscribe to Bot Events: message.im

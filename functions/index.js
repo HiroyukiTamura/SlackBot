@@ -4,12 +4,12 @@ const admin = require('firebase-admin');
 const {Messenger} = require('./messenger');
 const {Firestore} = require('./firestore');
 const {RequestClient} = require('./requestClient');
-const { SLACK_TOKEN, TOKEN_EMOJI_BOT, EMOJI_USER_ID, TOKEN_EMOJI, ACTION_ID_REVOKE } = require('./env');
+const {SLACK_TOKEN, TOKEN_EMOJI_BOT, EMOJI_USER_ID, TOKEN_EMOJI, ACTION_ID_REVOKE} = require('./env');
 const serviceAccount = require("./resources/slackbot-6314b-firebase-adminsdk-tapy4-9aaa95851d.json");
 const express = require('express');
 const cors = require('cors');
 const app = express();
-app.use(cors({ origin: true }));
+app.use(cors({origin: true}));
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
@@ -36,7 +36,8 @@ app.post('/eventTriggered', (request, response) => {
             case 'message':
                 return onMessaged(request.body.token, request.body.event.channel, request.body.event.user, request.body.event.text).then(result => {
                     console.log(result);
-                    return response.sendStatus(200);
+                    response.sendStatus(200);
+                    return null;
                 }).catch(e => {
                     console.log(e);
                 });
@@ -44,7 +45,8 @@ app.post('/eventTriggered', (request, response) => {
                 const promiseList = onMentioned(request.body.event.channel, request.body.event.user, request.body.event.text);
                 return Promise.all(promiseList).then(data => {
                     console.log('app_mention', data);
-                    return response.sendStatus(200);
+                    response.sendStatus(200);
+                    return null
                 }).catch(e => {
                     console.error(e);
                 });
@@ -58,24 +60,38 @@ app.post('/eventTriggered', (request, response) => {
 /**
  * for slash command
  */
-app.get('/bigEmoji', (request, response) => {
+app.post('/bigEmoji', async (request, response) => {
     console.log('bigEmoji fired');
-    console.log(request.body.command);
+    console.log(request.body);
 
-    if (request.body.command === '/stamp') {
-        const text = request.body.text.replace(/:([^:]+):/, '$1');
+    try {
+        if (request.body.command === '/stamp') {
 
-        return rc.getEmoji(text).then(imgUrl => {
-            console.log(request.body.channel_id);
-            return messenger.postBigEmoji(TOKEN_EMOJI, request.body.channel_id, imgUrl);
-        }).then(data => {
-            return response.sendStatus(200);
-        }).catch(e => {
-            console.error(e);
-        });
+            const text = request.body.text.replace(/:([^:]+):/, '$1');
+
+            const doc = await firestore.checkUserTokenExists(request.body.channel_id, request.body.user_id);
+            let token;
+            if (doc.exists)
+                token = doc.data()['token'];
+
+            if (token) {
+                const imgUrl = await rc.getEmoji(text);
+                const result = await messenger.postBigEmoji(token, request.body.channel_id, imgUrl);
+                console.log(result);
+            } else {
+                console.log('こっち', request.body.channel_id);
+                let msgObj = messenger.createInteractiveMsg(request.body.channel_id, false);
+                const result = await messenger.createSendMsgPrmWithBody(TOKEN_EMOJI_BOT, msgObj);
+                console.log(result);
+            }
+        }
+
+        return response.status(200).end();
+
+    } catch (e) {
+        console.error(e);
+        return response.status(500).end();
     }
-
-    return response.sendStatus(200);
 });
 
 
@@ -100,7 +116,8 @@ app.post('/bigEmojiEvent', (request, response) => {
                     return messenger.createSendMsgPrmWithBody(TOKEN_EMOJI_BOT, msgObj);
                 }).then(data => {
                     console.log(data);
-                    return response.sendStatus(200);
+                    response.sendStatus(200);
+                    return null;
                 }).catch(e => {
                     console.error(e);
                 })
@@ -152,15 +169,17 @@ app.post('/unregisterEmoji', (request, response) => {
     const responseUrl = payload.response_url;
     console.log(userId);
 
+    response.sendStatus(200);
+
     if (payload.api_app_id !== EMOJI_USER_ID) {
         console.log('payload.message.bot_id !== EMOJI_USER_ID');
-        return response.sendStatus(200);
+        return null;
     }
 
     if (payload.actions[0].action_id !== ACTION_ID_REVOKE) {
         console.log(payload.actions[0].action_id, ACTION_ID_REVOKE);
         console.log('payload.actions.action_id !== ACTION_ID_REVOKE');
-        return response.sendStatus(200);
+        return null;
     }
 
     response.sendStatus(200);
