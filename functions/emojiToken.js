@@ -21,46 +21,6 @@ class EmojiToken {
 
 
     /**
-     * @param channel {string}
-     * @param registered {boolean}
-     * @return {{blocks: {text: {text: string, type: string}, type: string}[], channel: string}}
-     */
-    createInteractiveMsg(channel, registered){
-        const text = registered
-            ? `BigEmojiの承認を取り消すには、<${this.env.AUTH_URL}|ここ>をクリックしてください。`
-            : `BigEmojiを使用するには、<${this.env.AUTH_URL}|ここ>をクリックしてbotを承認します。承認はいつでも取り消すことができます。`;
-        return {
-            channel: channel,
-            blocks: [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": text
-                    }
-                }
-            ]
-        };
-    }
-
-    /**
-     * @return {Promise<T>}
-     */
-    redirectToAuth(){
-        const option = {
-            url: 'https://slack.com/oauth/authorize',
-            headers: {
-                client_id: this.env.EMOJI_CLIENT_ID,
-                scope: this.env.EMOJI_SCOPES,
-                state: this.env.EMOJI_STATE,
-                redirect_uri: 'https://us-central1-slackbot-6314b.cloudfunctions.net/widgets/bigEmojiAuthRedirected'
-            },
-        };
-        return this.rp(option);
-    }
-
-
-    /**
      * @param code {string}
      * @return {Promise<T>}
      */

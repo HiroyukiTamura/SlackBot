@@ -1,11 +1,11 @@
 const functions = require('firebase-functions');
 
 const admin = require('firebase-admin');
-const request = require('request');
 const rp = require('request-promise');
 const {BigEmoji} = require('./bigemoji');
 const {EmojiToken} = require('./emojiToken');
-const { SLACK_TOKEN, EMOJI_STATE, EMOJI_SCOPES, EMOJI_CLIENT_ID, TOKEN_EMOJI_BOT, EMOJI_USER_ID, TOKEN_EMOJI, AUTH_URL } = require('./env');
+const {Messenger} = require('./messenger');
+const { SLACK_TOKEN, TOKEN_EMOJI_BOT, EMOJI_USER_ID } = require('./env');
 const serviceAccount = require("./resources/slackbot-6314b-firebase-adminsdk-tapy4-9aaa95851d.json");
 const express = require('express');
 const cors = require('cors');
@@ -41,7 +41,7 @@ app.post('/eventTriggered', (request, response) => {
                     console.log(e);
                 });
             case 'app_mention': {
-                const promiseList = onMentioned(request.body.token, request.body.event.channel, request.body.event.user, request.body.event.text);
+                const promiseList = onMentioned(request.body.event.channel, request.body.event.user, request.body.event.text);
                 return Promise.all(promiseList).then(data => {
                     console.log('app_mention', data);
                     return response.sendStatus(200);
@@ -57,6 +57,7 @@ app.post('/eventTriggered', (request, response) => {
 
 
 app.get('/bigEmoji', (request, response) => {
+    console.log('bigEmoji fired');
     if (request.body.command === '/stamp')
         return new BigEmoji().onStampCommand(request).then(data => {
             console.log(data);
@@ -69,11 +70,11 @@ app.get('/bigEmoji', (request, response) => {
 
 
 app.post('/bigEmojiEvent', (request, response) => {
+    console.log('bigEmojiEvent fired');
     if (request.body.type === 'event_callback'
         && request.body.event.user//botではundefinedとなる
         && request.body.event.channel_type === 'im') {
 
-        console.log('exports.eventTriggered fired');
         console.log(JSON.stringify(request.body));
 
         switch (request.body.event.type) {
@@ -81,9 +82,10 @@ app.post('/bigEmojiEvent', (request, response) => {
             case 'app_mention': {
                 console.log(request.body.event.channel, request.body.event.user);
                 const emojiToken = new EmojiToken();
+                const messenger = new Messenger();
                 return new emojiToken.checkUserTokenExists(request.body.event.channel, request.body.event.user).then(doc => {
-                    let msgObj = emojiToken.createInteractiveMsg(request.body.event.channel, doc.exists);
-                    return createSendMsgPrmWithBody(TOKEN_EMOJI_BOT, msgObj);
+                    let msgObj = messenger.createInteractiveMsg(request.body.event.channel, doc.exists);
+                    return messenger.createSendMsgPrmWithBody(TOKEN_EMOJI_BOT, msgObj);
                 }).then(data => {
                     console.log(data);
                     return response.sendStatus(200);
@@ -101,6 +103,7 @@ app.post('/bigEmojiEvent', (request, response) => {
 
 
 app.get('/bigEmojiAuthRedirected', (request, response) => {
+    console.log('bigEmojiAuthRedirected');
     console.log(JSON.stringify(request.query));
 
     const emojiToken = new EmojiToken();
@@ -117,7 +120,7 @@ app.get('/bigEmojiAuthRedirected', (request, response) => {
         const msg = data instanceof Error
             ? '処理に失敗しました。しばらくしてからやり直してください'
             : '登録が完了しました。"/stamp :emoji:"で絵文字が書けます。';
-        return createSendMsgPrm(TOKEN_EMOJI_BOT, EMOJI_USER_ID, msg);
+        return new Messenger().sendMsgForPhrase(TOKEN_EMOJI_BOT, EMOJI_USER_ID, msg);
     }).then(data => {
         return response.redirect(`https://slack.com/app_redirect?app=${EMOJI_USER_ID}`);
     }).catch(e => {
@@ -130,32 +133,32 @@ exports.widgets = functions.https.onRequest(app);
 
 
 /**
- * @param token {string}
  * @param channel {string}
  * @param user {string}
  * @param text {string}
  * @return {Array<Promise<T>>}
  */
-function onMentioned(token, channel, user, text) {
+function onMentioned(channel, user, text) {
     const t = text.replace(' ', '')
         .replace('　', '')
         .replace('!', '')
         .replace('！', '')
         .replace('<@UJ7GN8SJ0>', '');
 
+    const messenger = new Messenger();
+
     switch (t) {
         case '私がソクラテスだ': {
             console.log('yeah!');
-            return [createFbTransaction(channel, user, true), createSendMsgPrm(token, channel, 'アガトン「違いない」（『饗宴』）')];
+            return [createFbTransaction(channel, user, true), messenger.sendMsgForPhrase(SLACK_TOKEN, channel, 'アガトン「違いない」（『饗宴』）')];
         }
         case 'うるさい': {
             console.log('うるさい!');
-            return [createFbTransaction(channel, user, false), createSendMsgPrm(token, channel, 'カリクレス「仰せのとおりに。」（『饗宴』）')];
+            return [createFbTransaction(channel, user, false), messenger.sendMsgForPhrase(SLACK_TOKEN, channel, 'カリクレス「仰せのとおりに。」（『饗宴』）')];
         }
         default:
             console.log(`text: ${t}`);
-            //todo 説明整備すること
-            return [createSendMsgPrm(token, channel, '「私がソクラテスだ！」で相づちを開始、「うるさい！」で相づちを止めます。文章が読点で終わるとき相づちを打ちます。')];
+            return [messenger.sendMsgForPhrase(token, channel, '「私がソクラテスだ！」で相づちを開始、「うるさい！」で相づちを止めます。文章が読点で終わるとき相づちを打ちます。')];
     }
 }
 
@@ -194,49 +197,6 @@ function createFbTransaction(channel, user, enable) {
         });
 }
 
-
-/**
- * @param token {string}
- * @param channel {string}
- * @param msg {string}
- * @return {Promise<T>}
- */
-function createSendMsgPrm(token, channel, msg) {
-    const option = {
-        method: 'POST',
-        url: 'https://slack.com/api/chat.postMessage',
-        headers: {
-            'Content-type': 'application/json; charset=UTF-8',
-            'Authorization': `Bearer ${SLACK_TOKEN}`
-        },
-        json: true,
-        body: {
-            channel: channel,
-            text: msg
-        },
-    };
-    return rp(option)
-}
-
-
-/**
- * @param token {string}
- * @param body
- * @return {Promise<T>}
- */
-function createSendMsgPrmWithBody(token, body) {
-    const option = {
-        method: 'POST',
-        url: 'https://slack.com/api/chat.postMessage',
-        headers: {
-            'Content-type': 'application/json; charset=UTF-8',
-            'Authorization': `Bearer ${token}`
-        },
-        json: true,
-        body: body,
-    };
-    return rp(option)
-}
 
 /**
  * @param token {string}
@@ -284,7 +244,7 @@ function onMessaged(token, channel, user, text) {
 
             console.log(phrase);
 
-            return createSendMsgPrm(token, channel, phrase);
+            return new Messenger().sendMsgForPhrase(token, channel, phrase);
         }).then(result => {
             if (result)
                 console.log(JSON.stringify(result));
