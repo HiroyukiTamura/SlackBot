@@ -1,9 +1,16 @@
 const functions = require('firebase-functions');
 
 const admin = require('firebase-admin');
+const request = require('request');
 const rp = require('request-promise');
 const {BigEmoji} = require('./bigemoji');
+const {EmojiToken} = require('./emojiToken');
+const { SLACK_TOKEN, EMOJI_STATE, EMOJI_SCOPES, EMOJI_CLIENT_ID, TOKEN_EMOJI_BOT, EMOJI_USER_ID, TOKEN_EMOJI, AUTH_URL } = require('./env');
 const serviceAccount = require("./resources/slackbot-6314b-firebase-adminsdk-tapy4-9aaa95851d.json");
+const express = require('express');
+const cors = require('cors');
+const app = express();
+app.use(cors({ origin: true }));
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
@@ -17,8 +24,9 @@ admin.initializeApp({
  }
  * @type {HttpsFunction}
  */
-exports.eventTriggered = functions.https.onRequest((request, response) => {
+app.post('/eventTriggered', (request, response) => {
     if (request.method === 'POST'
+        && request.body.event.user//botではundefinedとなる
         && request.body.type === 'event_callback') {
 
         console.log('exports.eventTriggered fired');
@@ -28,7 +36,7 @@ exports.eventTriggered = functions.https.onRequest((request, response) => {
             case 'message':
                 return onMessaged(request.body.token, request.body.event.channel, request.body.event.user, request.body.event.text).then(result => {
                     console.log(result);
-                    return response.status(200).send();
+                    return response.sendStatus(200);
                 }).catch(e => {
                     console.log(e);
                 });
@@ -36,7 +44,7 @@ exports.eventTriggered = functions.https.onRequest((request, response) => {
                 const promiseList = onMentioned(request.body.token, request.body.event.channel, request.body.event.user, request.body.event.text);
                 return Promise.all(promiseList).then(data => {
                     console.log('app_mention', data);
-                    return response.status(200).send();
+                    return response.sendStatus(200);
                 }).catch(e => {
                     console.error(e);
                 });
@@ -48,13 +56,77 @@ exports.eventTriggered = functions.https.onRequest((request, response) => {
 });
 
 
-exports.bigEmoji = functions.https.onRequest((request, response) => {
-    return new BigEmoji().onRequest(request).then(data => {
-        return response.status(200).send(request.body.challenge);
+app.get('/bigEmoji', (request, response) => {
+    if (request.body.command === '/stamp')
+        return new BigEmoji().onStampCommand(request).then(data => {
+            console.log(data);
+            return response.sendStatus(200);
+        }).catch(e => {
+            console.error(e);
+        });
+    return response.sendStatus(200);
+});
+
+
+app.post('/bigEmojiEvent', (request, response) => {
+    if (request.body.type === 'event_callback'
+        && request.body.event.user//botではundefinedとなる
+        && request.body.event.channel_type === 'im') {
+
+        console.log('exports.eventTriggered fired');
+        console.log(JSON.stringify(request.body));
+
+        switch (request.body.event.type) {
+            case 'message':
+            case 'app_mention': {
+                console.log(request.body.event.channel, request.body.event.user);
+                const emojiToken = new EmojiToken();
+                return new emojiToken.checkUserTokenExists(request.body.event.channel, request.body.event.user).then(doc => {
+                    let msgObj = emojiToken.createInteractiveMsg(request.body.event.channel, doc.exists);
+                    return createSendMsgPrmWithBody(TOKEN_EMOJI_BOT, msgObj);
+                }).then(data => {
+                    console.log(data);
+                    return response.sendStatus(200);
+                }).catch(e => {
+                    console.error(e);
+                })
+            }
+        }
+    }
+
+    console.log(request.body);
+
+    return response.status(200).send(request.body.challenge);
+});
+
+
+app.get('/bigEmojiAuthRedirected', (request, response) => {
+    console.log(JSON.stringify(request.query));
+
+    const emojiToken = new EmojiToken();
+    return emojiToken.requestUserAuthCode(request.query.code).then(data => {
+        console.log(JSON.stringify(data));
+        if (data.ok)
+            return emojiToken.writeUserToken2Fb(data.access_token, data.user_id);
+
+        const err = new Error('!data.ok');
+        console.error(err);
+        return err;
+
+    }).then(data => {
+        const msg = data instanceof Error
+            ? '処理に失敗しました。しばらくしてからやり直してください'
+            : '登録が完了しました。"/stamp :emoji:"で絵文字が書けます。';
+        return createSendMsgPrm(TOKEN_EMOJI_BOT, EMOJI_USER_ID, msg);
+    }).then(data => {
+        return response.redirect(`https://slack.com/app_redirect?app=${EMOJI_USER_ID}`);
     }).catch(e => {
         console.error(e);
     });
 });
+
+
+exports.widgets = functions.https.onRequest(app);
 
 
 /**
@@ -135,13 +207,33 @@ function createSendMsgPrm(token, channel, msg) {
         url: 'https://slack.com/api/chat.postMessage',
         headers: {
             'Content-type': 'application/json; charset=UTF-8',
-            'Authorization': `Bearer ${require('./env').SLACK_TOKEN}`
+            'Authorization': `Bearer ${SLACK_TOKEN}`
         },
         json: true,
         body: {
-            channel: channel,//todo これマジで謎 'CBD96M0AF'
+            channel: channel,
             text: msg
         },
+    };
+    return rp(option)
+}
+
+
+/**
+ * @param token {string}
+ * @param body
+ * @return {Promise<T>}
+ */
+function createSendMsgPrmWithBody(token, body) {
+    const option = {
+        method: 'POST',
+        url: 'https://slack.com/api/chat.postMessage',
+        headers: {
+            'Content-type': 'application/json; charset=UTF-8',
+            'Authorization': `Bearer ${token}`
+        },
+        json: true,
+        body: body,
     };
     return rp(option)
 }
@@ -180,7 +272,7 @@ function onMessaged(token, channel, user, text) {
         }).then(snapshot => {
             if (!snapshot)
                 return;
-            const position = getRandomInt(snapshot.size-1);
+            const position = getRandomInt(snapshot.size - 1);
             let count = 0;
             let phrase = '';
             snapshot.forEach(item => {

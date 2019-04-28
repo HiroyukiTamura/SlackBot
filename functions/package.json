@@ -12,6 +12,8 @@
   "dependencies": {
     "@hapi/joi": "^15.0.0",
     "@slack/web-api": "^5.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.16.4",
     "firebase-admin": "~7.0.0",
     "firebase-functions": "^2.2.0",
     "request": "^2.88.0",

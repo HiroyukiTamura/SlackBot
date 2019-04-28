@@ -10,15 +10,14 @@ class BigEmoji {
      * @param request
      * @return {Promise<string | never>}
      */
-    onRequest(request){
-        if (request.body.command !== '/stamp')
-            throw Error();
-        console.log(request.body.command);
-        console.log(request.body.response_url);
+    onStampCommand(request){
         const text = request.body.text.replace(/:([^:]+):/, '$1');
 
         return this.getEmoji(text).then(imgUrl => {
-            return this.createSendMsgPrm(this.TOKEN_EMOJI, channel, imgUrl);
+            console.log(request.body.channel_id);
+            return this.createSendMsgPrm(this.TOKEN_EMOJI, request.body.channel_id, imgUrl);
+        }).then(data => {
+            return data;
         }).catch(e => {
             console.error(e);
         })

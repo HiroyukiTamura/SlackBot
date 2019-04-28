@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "access_token": "xoxp-***************************************",
+  "scope": "identify,bot,commands,im:history,emoji:read,im:read,chat:write:user,im:write",
+  "user_id": "*********",
+  "team_name": "*******",
+  "team_id": "*********",
+  "bot": {
+    "bot_user_id": "*********",
+    "bot_access_token": "xoxb-****************************"
+  }
+}
