@@ -21,19 +21,16 @@ const messenger = new Messenger();
 const rc = new RequestClient();
 
 /**
- * "type": "url_verification",
- "token": "3AiO4dvD6qVjelnUSJGldnFL",
- "challenge": "tj3uhlg58P7lhGaGMBkPpMfNgQ3m1oxI5FrPFeqRdjhKLyTDpZRC"
- }
- * @type {HttpsFunction}
+ * subscribe to messaging event for following phrase
  */
 app.post('/eventTriggered', (request, response) => {
+    console.log('exports.eventTriggered fired');
+    console.log(JSON.stringify(request.body));
+
     if (request.method === 'POST'
+        && request.body.event
         && request.body.event.user//botではundefinedとなる
         && request.body.type === 'event_callback') {
-
-        console.log('exports.eventTriggered fired');
-        console.log(JSON.stringify(request.body));
 
         switch (request.body.event.type) {
             case 'message':
@@ -58,9 +55,12 @@ app.post('/eventTriggered', (request, response) => {
     return response.status(200).send(request.body.challenge);
 });
 
-
+/**
+ * for slash command
+ */
 app.get('/bigEmoji', (request, response) => {
     console.log('bigEmoji fired');
+    console.log(request.body.command);
 
     if (request.body.command === '/stamp') {
         const text = request.body.text.replace(/:([^:]+):/, '$1');
@@ -79,9 +79,13 @@ app.get('/bigEmoji', (request, response) => {
 });
 
 
+/**
+ * subscribe to dm for register/unregister emoji
+ */
 app.post('/bigEmojiEvent', (request, response) => {
     console.log('bigEmojiEvent fired');
     if (request.body.type === 'event_callback'
+        && request.body.event
         && request.body.event.user//botではundefinedとなる
         && request.body.event.channel_type === 'im') {
 
@@ -109,7 +113,9 @@ app.post('/bigEmojiEvent', (request, response) => {
     return response.status(200).send(request.body.challenge);
 });
 
-
+/**
+ * for redirect url in auth
+ */
 app.get('/bigEmojiAuthRedirected', (request, response) => {
     console.log('bigEmojiAuthRedirected');
     console.log(JSON.stringify(request.query));
@@ -136,6 +142,9 @@ app.get('/bigEmojiAuthRedirected', (request, response) => {
 });
 
 
+/**
+ * subscribe to interactive action for unregister
+ */
 app.post('/unregisterEmoji', (request, response) => {
     console.log('unregisterEmoji fired');
     const payload = JSON.parse(request.body.payload);
@@ -223,7 +232,7 @@ function onMessaged(token, channel, user, text) {
             if (!phrase)
                 return null;
             console.log(phrase);
-            return new Messenger().sendMsgForPhrase(token, channel, phrase);
+            return new Messenger().sendMsgForPhrase(SLACK_TOKEN, channel, phrase);
         }).then(result => {
             if (result)
                 console.log(JSON.stringify(result));
