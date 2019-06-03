@@ -1,0 +1,59 @@
+# For a quick start check out our HTTP Requests collection (Tools|HTTP Client|Open HTTP Requests Collection).
+#
+# Following HTTP Request Live Templates are available:
+# * 'gtrp' and 'gtr' create a GET request with or without query parameters;
+# * 'ptr' and 'ptrp' create a POST request with a simple or parameter-like body;
+# * 'mptr' and 'fptr' create a POST request to submit a form with a text or file field (multipart/form-data);
+
+POST  http://localhost:5000/slackbot-6314b/us-central1/eventTriggered
+Content-Type: application/json
+
+{
+  "token": "3AiO4dvD6qVjelnUSJGldnFL",
+  "team_id": "TBCM08L1E",
+  "api_app_id": "AHWJDFQSF",
+  "event": {
+    "client_msg_id": "2f43a852-4392-42a5-840f-8ca502742c28",
+    "type": "message",
+    "text": "あー原因がわかった、飯食べる。",
+    "user": "UBDG65P8V",
+    "ts": "1556327647.014100",
+    "channel": "CBD96M0AF",
+    "event_ts": "1556327647.014100",
+    "channel_type": "channel"
+  },
+  "type": "event_callback",
+  "event_id": "EvJ848LNMB",
+  "event_time": 1556327647,
+  "authed_users": [
+    "UJ7GN8SJ0"
+  ]
+}
+
+###
+
+POST  http://localhost:5000/slackbot-6314b/us-central1/eventTriggered
+Content-Type: application/json
+
+{
+  "token": "3AiO4dvD6qVjelnUSJGldnFL",
+  "team_id": "TBCM08L1E",
+  "api_app_id": "AHWJDFQSF",
+  "event": {
+    "client_msg_id": "81d9a20a-ad20-4039-85f2-b8753ad1e32a",
+    "type": "app_mention",
+    "text": "<@UJ7GN8SJ0> 私がソクラテスだ！",
+    "user": "UBDG65P8V",
+    "ts": "1556363112.015000",
+    "channel": "CBD96M0AF",
+    "event_ts": "1556363112.015000"
+  },
+  "type": "event_callback",
+  "event_id": "EvJ7NQPGG4",
+  "event_time": 1556363112,
+  "authed_users": [
+    "UJ7GN8SJ0"
+  ]
+}
+
+###
