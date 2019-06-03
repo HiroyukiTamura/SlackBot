@@ -40,3 +40,6 @@ firestore is used to save user token for managing permission and switching on-of
 ##### Event Subscriptions
 - Request URL: `{FUNCTION_URL}/widgets/bigEmojiEvent`
 - Subscribe to Bot Events: message.im
+
+# Jira
+https://freqmodu874.atlassian.net/secure/RapidBoard.jspa
