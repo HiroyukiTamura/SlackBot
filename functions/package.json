@@ -10,7 +10,7 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
-    "@hapi/joi": "^15.0.0",
+    "@hapi/joi": "^15.1.1",
     "@slack/web-api": "^5.0.1",
     "cors": "^2.8.5",
     "express": "^4.17.1",
